@@ -18,6 +18,7 @@ package metrics
 
 import (
 	"context"
+	"math"
 	"net/url"
 	"time"
 
@@ -32,27 +33,7 @@ var (
 		prometheus.HistogramOpts{
 			Name:    "rest_client_request_duration_seconds",
 			Help:    "Request latency in seconds. Broken down by verb, and host.",
-			Buckets: []float64{0.005, 0.025, 0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 15.0, 30.0, 60.0},
-		},
-		[]string{"verb", "host"},
-	)
-
-	requestSize = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name: "rest_client_request_size_bytes",
-			Help: "Request size in bytes. Broken down by verb and host.",
-			// 64 bytes to 16MB
-			Buckets: []float64{64, 256, 512, 1024, 4096, 16384, 65536, 262144, 1048576, 4194304, 16777216},
-		},
-		[]string{"verb", "host"},
-	)
-
-	responseSize = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name: "rest_client_response_size_bytes",
-			Help: "Response size in bytes. Broken down by verb and host.",
-			// 64 bytes to 16MB
-			Buckets: []float64{64, 256, 512, 1024, 4096, 16384, 65536, 262144, 1048576, 4194304, 16777216},
+			Buckets: []float64{math.Inf(+1)}, // Intentionally using minimum buckets for better performance / lower cardinality.
 		},
 		[]string{"verb", "host"},
 	)
@@ -61,7 +42,7 @@ var (
 		prometheus.HistogramOpts{
 			Name:    "rest_client_rate_limiter_duration_seconds",
 			Help:    "Client side rate limiter latency in seconds. Broken down by verb, and host.",
-			Buckets: []float64{0.005, 0.025, 0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 15.0, 30.0, 60.0},
+			Buckets: []float64{math.Inf(+1)}, // Intentionally using minimum buckets for better performance / lower cardinality.
 		},
 		[]string{"verb", "host"},
 	)
@@ -91,8 +72,6 @@ func init() {
 func registerClientMetrics() {
 	// register the metrics with our registry
 	Registry.MustRegister(requestLatency)
-	Registry.MustRegister(requestSize)
-	Registry.MustRegister(responseSize)
 	Registry.MustRegister(rateLimiterLatency)
 	Registry.MustRegister(requestResult)
 	Registry.MustRegister(requestRetry)
@@ -100,8 +79,6 @@ func registerClientMetrics() {
 	// register the metrics with client-go
 	clientmetrics.Register(clientmetrics.RegisterOpts{
 		RequestLatency:     &LatencyAdapter{metric: requestLatency},
-		RequestSize:        &sizeAdapter{metric: requestSize},
-		ResponseSize:       &sizeAdapter{metric: responseSize},
 		RateLimiterLatency: &LatencyAdapter{metric: rateLimiterLatency},
 		RequestResult:      &resultAdapter{metric: requestResult},
 		RequestRetry:       &retryAdapter{requestRetry},
@@ -124,14 +101,6 @@ type LatencyAdapter struct {
 // Observe increments the request latency metric for the given verb/URL.
 func (l *LatencyAdapter) Observe(_ context.Context, verb string, u url.URL, latency time.Duration) {
 	l.metric.WithLabelValues(verb, u.String()).Observe(latency.Seconds())
-}
-
-type sizeAdapter struct {
-	metric *prometheus.HistogramVec
-}
-
-func (s *sizeAdapter) Observe(ctx context.Context, verb string, host string, size float64) {
-	s.metric.WithLabelValues(verb, host).Observe(size)
 }
 
 type resultAdapter struct {
