@@ -125,17 +125,17 @@ func (e *EventHandler) OnUpdate(oldObj, newObj interface{}) {
 func (e *EventHandler) OnDelete(obj interface{}) {
 	d := event.DeleteEvent{}
 
-	// Deal with tombstone events by pulling the object out.  Tombstone events wrap the object in a
+	// Deal with tombstone events by pulling the object out. Tombstone events wrap the object in a
 	// DeleteFinalStateUnknown struct, so the object needs to be pulled out.
 	// Copied from sample-controller
 	// This should never happen if we aren't missing events, which we have concluded that we are not
-	// and made decisions off of this belief.  Maybe this shouldn't be here?
+	// and made decisions off of this belief. Maybe this shouldn't be here?
 	var ok bool
 	if _, ok = obj.(client.Object); !ok {
 		// If the object doesn't have Metadata, assume it is a tombstone object of type DeletedFinalStateUnknown
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
-			log.Error(nil, "Error decoding objects.  Expected cache.DeletedFinalStateUnknown",
+			log.Error(nil, "Error decoding object. Expected client.Object or cache.DeletedFinalStateUnknown",
 				"type", fmt.Sprintf("%T", obj),
 				"object", obj)
 			return

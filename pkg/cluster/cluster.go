@@ -52,7 +52,7 @@ type Cluster interface {
 
 	// GetClient returns a client configured with the Config. This client may
 	// not be a fully "direct" client -- it may read from a cache, for
-	// instance.  See Options.NewClient for more information on how the default
+	// instance. See Options.NewClient for more information on how the default
 	// implementation works.
 	GetClient() client.Client
 
@@ -65,20 +65,20 @@ type Cluster interface {
 	// GetRESTMapper returns a RESTMapper
 	GetRESTMapper() meta.RESTMapper
 
-	// GetAPIReader returns a reader that will be configured to use the API server.
-	// This should be used sparingly and only when the client does not fit your
-	// use case.
+	// GetAPIReader returns a reader that will be configured to communicate with
+	// the API server directly (without a cache). This should be used sparingly
+	// and only when a cached client does not fit your use case.
 	GetAPIReader() client.Reader
 
 	// Start starts the cluster
 	Start(ctx context.Context) error
 }
 
-// Options are the possible options that can be configured for a Cluster.
+// Options are the options that can be configured for a Cluster.
 type Options struct {
 	// Scheme is the scheme used to resolve runtime.Objects to GroupVersionKinds / Resources
 	// Defaults to the kubernetes/client-go scheme.Scheme, but it's almost always better
-	// idea to pass your own scheme in.  See the documentation in pkg/scheme for more information.
+	// idea to pass your own scheme in. See the documentation in pkg/scheme for more information.
 	Scheme *runtime.Scheme
 
 	// MapperProvider provides the rest mapper used to map go types to Kubernetes APIs
@@ -107,8 +107,8 @@ type Options struct {
 	// By default, the cache will watch and list requested objects in all namespaces.
 	Cache cache.Options
 
-	// NewCache is the function that will create the cache to be used
-	// by the manager. If not set this will use the default new cache function.
+	// NewCache is the function that will create the cache to be used by the manager.
+	// If not set the default new cache function will be used.
 	//
 	// When using a custom NewCache, the Cache options will be passed to the
 	// NewCache function.
@@ -140,8 +140,8 @@ type Options struct {
 	EventBroadcaster record.EventBroadcaster
 
 	// makeBroadcaster allows deferring the creation of the broadcaster to
-	// avoid leaking goroutines if we never call Start on this manager.  It also
-	// returns whether or not this is a "owned" broadcaster, and as such should be
+	// avoid leaking goroutines if we never call Start on this manager. It also
+	// returns whether or not this is an "owned" broadcaster, and as such should be
 	// stopped with the manager.
 	makeBroadcaster intrec.EventBroadcasterProducer
 

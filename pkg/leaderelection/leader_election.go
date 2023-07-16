@@ -34,7 +34,7 @@ const inClusterNamespacePath = "/var/run/secrets/kubernetes.io/serviceaccount/na
 
 // Options provides the required configuration to create a new resource lock.
 type Options struct {
-	// LeaderElection determines whether or not to use leader election when
+	// LeaderElection determines whether to use leader election when
 	// starting the manager.
 	LeaderElection bool
 
@@ -57,10 +57,12 @@ func NewResourceLock(config *rest.Config, recorderProvider recorder.Provider, op
 		return nil, nil
 	}
 
-	// Default resource lock to "leases". The previous default (from v0.7.0 to v0.11.x) was configmapsleases, which was
-	// used to migrate from configmaps to leases. Since the default was "configmapsleases" for over a year, spanning
+	// Default resource lock to "leases".
+	// The previous default (from v0.7.0 to v0.11.x) was configmapsleases, which was used to migrate from
+	// configmaps to leases. Since the default was "configmapsleases" for over a year, spanning
 	// five minor releases, any actively maintained operators are very likely to have a released version that uses
 	// "configmapsleases". Therefore defaulting to "leases" should be safe.
+	// With v0.16.x (client-go 1.28) "leases" is now the only supported lock type.
 	if options.LeaderElectionResourceLock == "" {
 		options.LeaderElectionResourceLock = resourcelock.LeasesResourceLock
 	}
@@ -75,7 +77,7 @@ func NewResourceLock(config *rest.Config, recorderProvider recorder.Provider, op
 		var err error
 		options.LeaderElectionNamespace, err = getInClusterNamespace()
 		if err != nil {
-			return nil, fmt.Errorf("unable to find leader election namespace: %w", err)
+			return nil, fmt.Errorf("LeaderElectionNamespace not configured and unable to find leader election namespace: %w", err)
 		}
 	}
 
@@ -88,32 +90,34 @@ func NewResourceLock(config *rest.Config, recorderProvider recorder.Provider, op
 
 	// Construct clients for leader election
 	rest.AddUserAgent(config, "leader-election")
-	corev1Client, err := corev1client.NewForConfig(config)
+	coreV1Client, err := corev1client.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
 
-	coordinationClient, err := coordinationv1client.NewForConfig(config)
+	coordinationV1Client, err := coordinationv1client.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
 
-	return resourcelock.New(options.LeaderElectionResourceLock,
+	return resourcelock.New(
+		options.LeaderElectionResourceLock,
 		options.LeaderElectionNamespace,
 		options.LeaderElectionID,
-		corev1Client,
-		coordinationClient,
+		coreV1Client,
+		coordinationV1Client,
 		resourcelock.ResourceLockConfig{
 			Identity:      id,
 			EventRecorder: recorderProvider.GetEventRecorderFor(id),
-		})
+		},
+	)
 }
 
 func getInClusterNamespace() (string, error) {
 	// Check whether the namespace file exists.
-	// If not, we are not running in cluster so can't guess the namespace.
+	// If not, we are not running in cluster so we can't guess the namespace.
 	if _, err := os.Stat(inClusterNamespacePath); os.IsNotExist(err) {
-		return "", fmt.Errorf("not running in-cluster, please specify LeaderElectionNamespace")
+		return "", fmt.Errorf("not running in-cluster")
 	} else if err != nil {
 		return "", fmt.Errorf("error checking namespace file: %w", err)
 	}

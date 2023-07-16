@@ -23,7 +23,7 @@ package conversion
 
 import "k8s.io/apimachinery/pkg/runtime"
 
-// Convertible defines capability of a type to convertible i.e. it can be converted to/from a hub type.
+// Convertible defines the capability of a type to be convertible i.e. it can be converted to/from a hub type.
 type Convertible interface {
 	runtime.Object
 	ConvertTo(dst Hub) error

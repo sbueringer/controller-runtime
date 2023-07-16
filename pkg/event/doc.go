@@ -15,14 +15,14 @@ limitations under the License.
 */
 
 /*
-Package event contains the definitions for the Event types produced by source.Sources and transformed into
+Package event contains the definitions for the Event types produced by a source.Source and transformed into
 reconcile.Requests by handler.EventHandler.
 
 You should rarely need to work with these directly -- instead, use Controller.Watch with
-source.Sources and handler.EventHandlers.
+a source.Source and a handler.EventHandler.
 
 Events generally contain both a full runtime.Object that caused the event, as well
-as a direct handle to that object's metadata.  This saves a lot of typecasting in
+as a direct handle to that object's metadata. This saves a lot of typecasting in
 code that works with Events.
 */
 package event

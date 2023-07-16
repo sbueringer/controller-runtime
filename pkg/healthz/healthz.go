@@ -57,7 +57,7 @@ func (h *Handler) serveAggregated(resp http.ResponseWriter, req *http.Request) {
 			continue
 		}
 		if err := check(req); err != nil {
-			log.V(1).Info("healthz check failed", "checker", checkName, "error", err)
+			log.Error(err, "healthz check failed", "checker", checkName)
 			parts = append(parts, checkStatus{name: checkName, healthy: false})
 			failed = true
 		} else {
@@ -84,9 +84,9 @@ func (h *Handler) serveAggregated(resp http.ResponseWriter, req *http.Request) {
 }
 
 // writeStatusAsText writes out the given check statuses in some semi-arbitrary
-// bespoke text format that we copied from Kubernetes.  unknownExcludes lists
+// bespoke text format that we copied from Kubernetes. unknownExcludes lists
 // any checks that the user requested to have excluded, but weren't actually
-// known checks.  writeStatusAsText is always verbose on failure, and can be
+// known checks. writeStatusAsText is always verbose on failure, and can be
 // forced to be verbose on success using the given argument.
 func writeStatusesAsText(resp http.ResponseWriter, parts []checkStatus, unknownExcludes sets.Set[string], failed, forceVerbose bool) {
 	resp.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -101,7 +101,7 @@ func writeStatusesAsText(resp http.ResponseWriter, parts []checkStatus, unknownE
 
 	// shortcut for easy non-verbose success
 	if !failed && !forceVerbose {
-		fmt.Fprint(resp, "ok")
+		_, _ = fmt.Fprint(resp, "ok")
 		return
 	}
 
@@ -110,25 +110,25 @@ func writeStatusesAsText(resp http.ResponseWriter, parts []checkStatus, unknownE
 	for _, checkOut := range parts {
 		switch {
 		case checkOut.excluded:
-			fmt.Fprintf(resp, "[+]%s excluded: ok\n", checkOut.name)
+			_, _ = fmt.Fprintf(resp, "[+]%s excluded: ok\n", checkOut.name)
 		case checkOut.healthy:
-			fmt.Fprintf(resp, "[+]%s ok\n", checkOut.name)
+			_, _ = fmt.Fprintf(resp, "[+]%s ok\n", checkOut.name)
 		default:
-			// don't include the error since this endpoint is public.  If someone wants more detail
-			// they should have explicit permission to the detailed checks.
-			fmt.Fprintf(resp, "[-]%s failed: reason withheld\n", checkOut.name)
+			// Don't include the error since this endpoint is public. If someone wants more details
+			// they should have explicit permissions to read the error message in the logs.
+			_, _ = fmt.Fprintf(resp, "[-]%s failed: reason withheld\n", checkOut.name)
 		}
 	}
 
 	if unknownExcludes.Len() > 0 {
-		fmt.Fprintf(resp, "warn: some health checks cannot be excluded: no matches for %s\n", formatQuoted(unknownExcludes.UnsortedList()...))
+		_, _ = fmt.Fprintf(resp, "warn: some health checks cannot be excluded: no matches for %s\n", formatQuoted(unknownExcludes.UnsortedList()...))
 	}
 
 	if failed {
 		log.Info("healthz check failed", "statuses", parts)
-		fmt.Fprintf(resp, "healthz check failed\n")
+		_, _ = fmt.Fprintf(resp, "healthz check failed\n")
 	} else {
-		fmt.Fprint(resp, "healthz check passed\n")
+		_, _ = fmt.Fprint(resp, "healthz check passed\n")
 	}
 }
 
@@ -159,7 +159,7 @@ func (h *Handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	checkName := reqPath[1:] // ignore the leading slash
 	checker, known := h.Checks[checkName]
 	if !known {
-		http.NotFoundHandler().ServeHTTP(resp, req)
+		http.NotFound(resp, req)
 		return
 	}
 
@@ -176,7 +176,7 @@ func (h CheckHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	if err := h.Checker(req); err != nil {
 		http.Error(resp, fmt.Sprintf("internal server error: %v", err), http.StatusInternalServerError)
 	} else {
-		fmt.Fprint(resp, "ok")
+		_, _ = fmt.Fprint(resp, "ok")
 	}
 }
 

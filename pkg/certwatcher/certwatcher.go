@@ -33,7 +33,7 @@ import (
 
 var log = logf.RuntimeLog.WithName("certwatcher")
 
-// CertWatcher watches certificate and key files for changes.  When either file
+// CertWatcher watches certificate and key files for changes. When either file
 // changes, it reads and parses both and calls an optional callback with the new
 // certificate.
 type CertWatcher struct {
@@ -144,7 +144,7 @@ func (cw *CertWatcher) Watch() {
 }
 
 // ReadCertificate reads the certificate and key files from disk, parses them,
-// and updates the current certificate on the watcher.  If a callback is set, it
+// and updates the current certificate on the watcher. If a callback is set, it
 // is invoked with the new certificate.
 func (cw *CertWatcher) ReadCertificate() error {
 	metrics.ReadCertificateTotal.Inc()

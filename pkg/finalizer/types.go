@@ -20,7 +20,7 @@ import (
 )
 
 // Registerer holds Register that will check if a key is already registered
-// and error out and it does; and if not registered, it will add the finalizer
+// and error out if it does. If not registered, it will add the finalizer
 // to the finalizers map as the value for the provided key.
 type Registerer interface {
 	Register(key string, f Finalizer) error
