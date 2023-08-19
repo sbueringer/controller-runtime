@@ -80,6 +80,7 @@ func (p *loggerPromise) Fulfill(parentLogSink logr.LogSink) {
 	p.logger.lock.Unlock()
 
 	for _, childPromise := range p.childPromises {
+		// FIXME: what about call depth here?
 		childPromise.Fulfill(sink)
 	}
 }
@@ -87,7 +88,7 @@ func (p *loggerPromise) Fulfill(parentLogSink logr.LogSink) {
 // delegatingLogSink is a logsink that delegates to another logr.LogSink.
 // If the underlying promise is not nil, it registers calls to sub-loggers with
 // the logging factory to be populated later, and returns a new delegating
-// logger.  It expects to have *some* logr.Logger set at all times (generally
+// logger. It expects to have *some* logr.Logger set at all times (generally
 // a no-op logger before the promises are fulfilled).
 type delegatingLogSink struct {
 	lock    sync.RWMutex
@@ -104,7 +105,7 @@ func (l *delegatingLogSink) Init(info logr.RuntimeInfo) {
 	l.info = info
 }
 
-// Enabled tests whether this Logger is enabled.  For example, commandline
+// Enabled tests whether this Logger is enabled. For example, commandline
 // flags might be used to set the logging verbosity and disable some info
 // logs.
 func (l *delegatingLogSink) Enabled(level int) bool {
@@ -117,8 +118,8 @@ func (l *delegatingLogSink) Enabled(level int) bool {
 // Info logs a non-error message with the given key/value pairs as context.
 //
 // The msg argument should be used to add some constant description to
-// the log line.  The key/value pairs can then be used to add additional
-// variable information.  The key/value pairs should alternate string
+// the log line. The key/value pairs can then be used to add additional
+// variable information. The key/value pairs should alternate string
 // keys and arbitrary values.
 func (l *delegatingLogSink) Info(level int, msg string, keysAndValues ...interface{}) {
 	eventuallyFulfillRoot()

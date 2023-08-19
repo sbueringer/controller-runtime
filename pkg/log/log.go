@@ -19,17 +19,17 @@ limitations under the License.
 //
 // # The Log Handle
 //
-// This package contains a root logr.Logger Log.  It may be used to
-// get a handle to whatever the root logging implementation is.  By
+// This package contains a root logr.Logger Log. It may be used to
+// get a handle to whatever the root logging implementation is. By
 // default, no implementation exists, and the handle returns "promises"
-// to loggers.  When the implementation is set using SetLogger, these
+// to loggers. When the implementation is set using SetLogger, these
 // "promises" will be converted over to real loggers.
 //
 // # Logr
 //
 // All logging in controller-runtime is structured, using a set of interfaces
 // defined by a package called logr
-// (https://pkg.go.dev/github.com/go-logr/logr).  The sub-package zap provides
+// (https://pkg.go.dev/github.com/go-logr/logr). The sub-package zap provides
 // helpers for setting up logr backed by Zap (go.uber.org/zap).
 package log
 
@@ -47,21 +47,21 @@ import (
 
 // SetLogger sets a concrete logging implementation for all deferred Loggers.
 func SetLogger(l logr.Logger) {
-	logFullfilled.Store(true)
+	logFulfilled.Store(true)
 	rootLog.Fulfill(l.GetSink())
 }
 
 func eventuallyFulfillRoot() {
-	if logFullfilled.Load() {
+	if logFulfilled.Load() {
 		return
 	}
 	if time.Since(rootLogCreated).Seconds() >= 30 {
-		if logFullfilled.CompareAndSwap(false, true) {
+		if logFulfilled.CompareAndSwap(false, true) {
 			stack := debug.Stack()
 			stackLines := bytes.Count(stack, []byte{'\n'})
 			sep := []byte{'\n', '\t', '>', ' ', ' '}
 
-			fmt.Fprintf(os.Stderr,
+			_, _ = fmt.Fprintf(os.Stderr,
 				"[controller-runtime] log.SetLogger(...) was never called; logs will not be displayed.\nDetected at:%s%s", sep,
 				// prefix every line, so it's clear this is a stack trace related to the above message
 				bytes.Replace(stack, []byte{'\n'}, sep, stackLines-1),
@@ -72,10 +72,10 @@ func eventuallyFulfillRoot() {
 }
 
 var (
-	logFullfilled atomic.Bool
+	logFulfilled atomic.Bool
 )
 
-// Log is the base logger used by kubebuilder.  It delegates
+// Log is the base logger used by controller-runtime. It delegates
 // to another logr.Logger. You *must* call SetLogger to
 // get any actual logging. If SetLogger is not called within
 // the first 30 seconds of a binaries lifetime, it will get

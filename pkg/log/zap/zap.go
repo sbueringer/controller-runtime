@@ -36,7 +36,7 @@ type EncoderConfigOption func(*zapcore.EncoderConfig)
 // NewEncoderFunc is a function that creates an Encoder using the provided EncoderConfigOptions.
 type NewEncoderFunc func(...EncoderConfigOption) zapcore.Encoder
 
-// New returns a brand new Logger configured with Opts. It
+// New returns a brand-new Logger configured with Opts. It
 // uses KubeAwareEncoder which adds Type information and
 // Namespace/Name to the log.
 func New(opts ...Opts) logr.Logger {
@@ -63,7 +63,7 @@ func WriteTo(out io.Writer) Opts {
 	}
 }
 
-// Encoder configures how the logger will encode the output e.g JSON or console.
+// Encoder configures how the logger will encode the output e.g. JSON or console.
 // See Options.Encoder.
 func Encoder(encoder zapcore.Encoder) func(o *Options) {
 	return func(o *Options) {

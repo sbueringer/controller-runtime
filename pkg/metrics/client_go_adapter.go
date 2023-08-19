@@ -24,7 +24,7 @@ import (
 )
 
 // this file contains setup logic to initialize the myriad of places
-// that client-go registers metrics.  We copy the names and formats
+// that client-go registers metrics. We copy the names and formats
 // from Kubernetes so that we match the core controllers.
 
 var (
@@ -43,7 +43,7 @@ func init() {
 	registerClientMetrics()
 }
 
-// registerClientMetrics sets up the client latency metrics from client-go.
+// registerClientMetrics sets up the client metrics from client-go.
 func registerClientMetrics() {
 	// register the metrics with our registry
 	Registry.MustRegister(requestResult)

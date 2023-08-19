@@ -26,7 +26,7 @@ import (
 
 // Result contains the result of a Reconciler invocation.
 type Result struct {
-	// Requeue tells the Controller to requeue the reconcile key.  Defaults to false.
+	// Requeue tells the Controller to requeue the reconcile key. Defaults to false.
 	Requeue bool
 
 	// RequeueAfter if greater than 0, tells the Controller to requeue the reconcile key after the Duration.
@@ -42,8 +42,8 @@ func (r *Result) IsZero() bool {
 	return *r == Result{}
 }
 
-// Request contains the information necessary to reconcile a Kubernetes object.  This includes the
-// information to uniquely identify the object - its Name and Namespace.  It does NOT contain information about
+// Request contains the information necessary to reconcile a Kubernetes object. This includes the
+// information to uniquely identify the object - its Name and Namespace. It does NOT contain information about
 // any specific Event or the object contents itself.
 type Request struct {
 	// NamespacedName is the name and namespace of the object to reconcile.
@@ -52,13 +52,13 @@ type Request struct {
 
 /*
 Reconciler implements a Kubernetes API for a specific Resource by Creating, Updating or Deleting Kubernetes
-objects, or by making changes to systems external to the cluster (e.g. cloudproviders, github, etc).
+objects, or by making changes to systems external to the cluster (e.g. cloudproviders, GitHub, etc.).
 
 reconcile implementations compare the state specified in an object by a user against the actual cluster state,
 and then perform operations to make the actual cluster state reflect the state specified by the user.
 
 Typically, reconcile is triggered by a Controller in response to cluster Events (e.g. Creating, Updating,
-Deleting Kubernetes objects) or external Events (GitHub Webhooks, polling external sources, etc).
+Deleting Kubernetes objects) or external Events (GitHub Webhooks, polling external sources, etc.).
 
 Example reconcile Logic:
 
@@ -97,7 +97,7 @@ type Reconciler interface {
 	// If the error is nil and the returned Result has a non-zero result.RequeueAfter, the request
 	// will be requeued after the specified duration.
 	//
-	// If the error is nil and result.RequeueAfter is zero and result.Reque is true, the request
+	// If the error is nil and result.RequeueAfter is zero and result.Requeue is true, the request
 	// will be requeued using exponential backoff.
 	Reconcile(context.Context, Request) (Result, error)
 }
@@ -120,7 +120,7 @@ type terminalError struct {
 	err error
 }
 
-// This function will return nil if te.err is nil.
+// Unwrap will return nil if te.err is nil.
 func (te *terminalError) Unwrap() error {
 	return te.err
 }

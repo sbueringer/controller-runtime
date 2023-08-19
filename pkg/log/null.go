@@ -33,27 +33,27 @@ var _ logr.LogSink = NullLogSink{}
 func (log NullLogSink) Init(logr.RuntimeInfo) {
 }
 
-// Info implements logr.InfoLogger.
+// Info implements logr.LogSink.
 func (NullLogSink) Info(_ int, _ string, _ ...interface{}) {
 	// Do nothing.
 }
 
-// Enabled implements logr.InfoLogger.
+// Enabled implements logr.LogSink.
 func (NullLogSink) Enabled(level int) bool {
 	return false
 }
 
-// Error implements logr.Logger.
+// Error implements logr.LogSink.
 func (NullLogSink) Error(_ error, _ string, _ ...interface{}) {
 	// Do nothing.
 }
 
-// WithName implements logr.Logger.
+// WithName implements logr.LogSink.
 func (log NullLogSink) WithName(_ string) logr.LogSink {
 	return log
 }
 
-// WithValues implements logr.Logger.
+// WithValues implements logr.LogSink.
 func (log NullLogSink) WithValues(_ ...interface{}) logr.LogSink {
 	return log
 }

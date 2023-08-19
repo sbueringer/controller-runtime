@@ -26,6 +26,6 @@ import (
 
 // Provider knows how to generate new event recorders with given name.
 type Provider interface {
-	// NewRecorder returns an EventRecorder with given name.
+	// GetEventRecorderFor returns an EventRecorder with the given name.
 	GetEventRecorderFor(name string) record.EventRecorder
 }

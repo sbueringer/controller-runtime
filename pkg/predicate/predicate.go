@@ -21,6 +21,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	logf "sigs.k8s.io/controller-runtime/pkg/internal/log"
@@ -148,7 +149,7 @@ func (ResourceVersionChangedPredicate) Update(e event.UpdateEvent) bool {
 // Caveats:
 //
 // * The assumption that the Generation is incremented only on writing to the spec does not hold for all APIs.
-// E.g For Deployment objects the Generation is also incremented on writes to the metadata.annotations field.
+// E.g. For Deployment objects the Generation is also incremented on writes to the metadata.annotations field.
 // For object types other than CustomResources be sure to verify which fields will trigger a Generation increment when they are written to.
 //
 // * With this predicate, any update events with writes only to the status field will not be reconciled.
@@ -181,7 +182,7 @@ func (GenerationChangedPredicate) Update(e event.UpdateEvent) bool {
 //		&handler.EnqueueRequestForObject{},
 //		predicate.Or(predicate.GenerationChangedPredicate{}, predicate.AnnotationChangedPredicate{}))
 //
-// This is mostly useful for controllers that needs to trigger both when the resource's generation is incremented
+// This is mostly useful for controllers that need to trigger both when the resource's generation is incremented
 // (i.e., when the resource' .spec changes), or an annotation changes (e.g., for a staging/alpha API).
 type AnnotationChangedPredicate struct {
 	Funcs
