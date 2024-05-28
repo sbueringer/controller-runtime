@@ -17,10 +17,13 @@ limitations under the License.
 package client
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"runtime/debug"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -359,6 +362,14 @@ func (c *client) Get(ctx context.Context, key ObjectKey, obj Object, opts ...Get
 	// Perform a live lookup.
 	switch obj.(type) {
 	case runtime.Unstructured:
+		stack := debug.Stack()
+		stackLines := bytes.Count(stack, []byte{'\n'})
+		sep := []byte{'\n', '\t', '>', ' ', ' '}
+		fmt.Fprintf(os.Stderr,
+			"UNCACHED_UNSTRUCTURED_GET.\nDetected at:%s%s", sep,
+			// prefix every line, so it's clear this is a stack trace related to the above message
+			bytes.Replace(stack, []byte{'\n'}, sep, stackLines-1),
+		)
 		return c.unstructuredClient.Get(ctx, key, obj, opts...)
 	case *metav1.PartialObjectMetadata:
 		// Metadata only object should always preserve the GVK coming in from the caller.
@@ -381,6 +392,14 @@ func (c *client) List(ctx context.Context, obj ObjectList, opts ...ListOption) e
 	// Perform a live lookup.
 	switch x := obj.(type) {
 	case runtime.Unstructured:
+		stack := debug.Stack()
+		stackLines := bytes.Count(stack, []byte{'\n'})
+		sep := []byte{'\n', '\t', '>', ' ', ' '}
+		fmt.Fprintf(os.Stderr,
+			"UNCACHED_UNSTRUCTURED_LIST.\nDetected at:%s%s", sep,
+			// prefix every line, so it's clear this is a stack trace related to the above message
+			bytes.Replace(stack, []byte{'\n'}, sep, stackLines-1),
+		)
 		return c.unstructuredClient.List(ctx, obj, opts...)
 	case *metav1.PartialObjectMetadataList:
 		// Metadata only object should always preserve the GVK.
