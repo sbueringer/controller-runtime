@@ -10,7 +10,9 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strings"
 
+	"github.com/blang/semver/v4"
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/tools/setup-envtest/versions"
 	"sigs.k8s.io/yaml"
@@ -62,16 +64,19 @@ func (c *HTTPClient) ListVersions(ctx context.Context) ([]versions.Set, error) {
 		return nil, err
 	}
 
-	knownVersions := map[versions.Concrete][]versions.PlatformItem{}
-	for _, releases := range index.Releases {
+	knownVersions := map[*semver.Version][]versions.PlatformItem{}
+	for version, releases := range index.Releases {
+		v, err := semver.ParseTolerant(version)
+		if err != nil {
+			c.Log.V(1).Error(err, "skipping version -- couldn't parse version", "version", version)
+			continue
+		}
+
 		for archiveName, archive := range releases {
-			ver, details := versions.ExtractWithPlatform(versions.ArchiveRE, archiveName)
-			if ver == nil {
-				c.Log.V(1).Info("skipping archive -- does not appear to be a versioned tools archive", "name", archiveName)
-				continue
-			}
-			c.Log.V(1).Info("found version", "version", ver, "platform", details)
-			knownVersions[*ver] = append(knownVersions[*ver], versions.PlatformItem{
+			archiveName := strings.Replace(archiveName, version, "v99.99.99", 1)
+			_, details := versions.ExtractWithPlatform(versions.ArchiveRE, archiveName)
+			c.Log.V(1).Info("found version", "version", v, "platform", details)
+			knownVersions[&v] = append(knownVersions[&v], versions.PlatformItem{
 				Platform: details,
 				Hash: &versions.Hash{
 					Type:     versions.SHA512HashType,
@@ -89,7 +94,7 @@ func (c *HTTPClient) ListVersions(ctx context.Context) ([]versions.Set, error) {
 	// sort in inverse order so that the newest one is first
 	sort.Slice(res, func(i, j int) bool {
 		first, second := res[i].Version, res[j].Version
-		return first.NewerThan(second)
+		return first.GT(*second)
 	})
 
 	return res, nil
@@ -104,15 +109,18 @@ func (c *HTTPClient) GetVersion(ctx context.Context, version versions.Concrete, 
 
 	var loc *url.URL
 	var name string
-	for _, releases := range index.Releases {
-		for archiveName, archive := range releases {
-			ver, details := versions.ExtractWithPlatform(versions.ArchiveRE, archiveName)
-			if ver == nil {
-				c.Log.V(1).Info("skipping archive -- does not appear to be a versioned tools archive", "name", archiveName)
-				continue
-			}
+	for releaseVersion, releases := range index.Releases {
+		v, err := semver.ParseTolerant(releaseVersion)
+		if err != nil {
+			c.Log.V(1).Error(err, "skipping version -- couldn't parse version", "version", version)
+			continue
+		}
 
-			if *ver == version && details.OS == platform.OS && details.Arch == platform.Arch {
+		for archiveName, archive := range releases {
+			archiveName := strings.Replace(archiveName, releaseVersion, "v99.99.99", 1)
+			_, details := versions.ExtractWithPlatform(versions.ArchiveRE, archiveName)
+
+			if v.EQ(version.ToSemVer()) && details.OS == platform.OS && details.Arch == platform.Arch {
 				loc, err = url.Parse(archive.SelfLink)
 				if err != nil {
 					return fmt.Errorf("error parsing selfLink %q, %w", loc, err)
@@ -151,15 +159,18 @@ func (c *HTTPClient) FetchSum(ctx context.Context, version versions.Concrete, pl
 		return err
 	}
 
-	for _, releases := range index.Releases {
-		for archiveName, archive := range releases {
-			ver, details := versions.ExtractWithPlatform(versions.ArchiveRE, archiveName)
-			if ver == nil {
-				c.Log.V(1).Info("skipping archive -- does not appear to be a versioned tools archive", "name", archiveName)
-				continue
-			}
+	for releaseVersion, releases := range index.Releases {
+		v, err := semver.ParseTolerant(releaseVersion)
+		if err != nil {
+			c.Log.V(1).Error(err, "skipping version -- couldn't parse version", "version", version)
+			continue
+		}
 
-			if *ver == version && details.OS == platform.OS && details.Arch == platform.Arch {
+		for archiveName, archive := range releases {
+			archiveName := strings.Replace(archiveName, releaseVersion, "v99.99.99", 1)
+			_, details := versions.ExtractWithPlatform(versions.ArchiveRE, archiveName)
+
+			if v.EQ(version.ToSemVer()) && details.OS == platform.OS && details.Arch == platform.Arch {
 				platform.Hash = &versions.Hash{
 					Type:     versions.SHA512HashType,
 					Encoding: versions.HexHashEncoding,

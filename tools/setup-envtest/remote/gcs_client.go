@@ -13,6 +13,7 @@ import (
 	"path"
 	"sort"
 
+	"github.com/blang/semver/v4"
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/tools/setup-envtest/versions"
 )
@@ -70,7 +71,7 @@ func (c *GCSClient) ListVersions(ctx context.Context) ([]versions.Set, error) {
 	}
 	query := make(url.Values)
 
-	knownVersions := map[versions.Concrete][]versions.PlatformItem{}
+	knownVersions := map[*semver.Version][]versions.PlatformItem{}
 	for cont := true; cont; {
 		c.Log.V(1).Info("listing bucket to get versions", "bucket", c.Bucket)
 
@@ -107,7 +108,12 @@ func (c *GCSClient) ListVersions(ctx context.Context) ([]versions.Set, error) {
 					continue
 				}
 				c.Log.V(1).Info("found version", "version", ver, "platform", details)
-				knownVersions[*ver] = append(knownVersions[*ver], versions.PlatformItem{
+				v := &semver.Version{
+					Major: uint64(ver.Major),
+					Minor: uint64(ver.Minor),
+					Patch: uint64(ver.Patch),
+				}
+				knownVersions[v] = append(knownVersions[v], versions.PlatformItem{
 					Platform: details,
 					Hash: &versions.Hash{
 						Type:     versions.MD5HashType,
@@ -131,7 +137,7 @@ func (c *GCSClient) ListVersions(ctx context.Context) ([]versions.Set, error) {
 	// sort in inverse order so that the newest one is first
 	sort.Slice(res, func(i, j int) bool {
 		first, second := res[i].Version, res[j].Version
-		return first.NewerThan(second)
+		return first.GT(*second)
 	})
 
 	return res, nil

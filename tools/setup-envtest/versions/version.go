@@ -6,6 +6,8 @@ package versions
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/blang/semver/v4"
 )
 
 // NB(directxman12): much of this is custom instead of using a library because
@@ -20,6 +22,7 @@ import (
 // Concrete is a concrete Kubernetes-style semver version.
 type Concrete struct {
 	Major, Minor, Patch int
+	Pre                 []semver.PRVersion
 }
 
 // AsConcrete returns this version.
@@ -40,7 +43,16 @@ func (c Concrete) NewerThan(other Concrete) bool {
 
 // Matches checks if this version is equal to the other one.
 func (c Concrete) Matches(other Concrete) bool {
-	return c == other
+	return c.ToSemVer().EQ(other.ToSemVer())
+}
+
+func (c Concrete) ToSemVer() semver.Version {
+	return semver.Version{
+		Major: uint64(c.Major),
+		Minor: uint64(c.Minor),
+		Patch: uint64(c.Patch),
+		Pre:   c.Pre,
+	}
 }
 
 func (c Concrete) String() string {
@@ -51,6 +63,7 @@ func (c Concrete) String() string {
 type PatchSelector struct {
 	Major, Minor int
 	Patch        PointVersion
+	Pre          []semver.PRVersion
 }
 
 func (s PatchSelector) String() string {
@@ -73,6 +86,7 @@ func (s PatchSelector) AsConcrete() *Concrete {
 		Major: s.Major,
 		Minor: s.Minor,
 		Patch: int(s.Patch), // safe to cast, we've just checked wilcards above
+		Pre:   s.Pre,
 	}
 }
 

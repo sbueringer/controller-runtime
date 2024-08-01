@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+
+	"github.com/blang/semver/v4"
 )
 
 var (
@@ -36,10 +38,22 @@ var (
 func FromExpr(expr string) (Spec, error) {
 	match := versionExprRE.FindStringSubmatch(expr)
 	if match == nil {
-		return Spec{}, fmt.Errorf("unable to parse %q as a version string"+
-			"should be X.Y.Z, where Z may be '*','x', or left off entirely "+
-			"to denote a wildcard, optionally prefixed by ~|<|<=, and optionally"+
-			"followed by ! (latest remote version)", expr)
+		ver, err := semver.ParseTolerant(expr)
+		if err != nil {
+			return Spec{}, fmt.Errorf("unable to parse %q as a version string"+
+				"should be X.Y.Z, where Z may be '*','x', or left off entirely "+
+				"to denote a wildcard, optionally prefixed by ~|<|<=, and optionally"+
+				"followed by ! (latest remote version)", expr)
+		}
+		return Spec{
+			CheckLatest: false,
+			Selector: PatchSelector{
+				Major: int(ver.Major),
+				Minor: int(ver.Minor),
+				Patch: PointVersion(ver.Patch),
+				Pre:   ver.Pre,
+			},
+		}, nil
 	}
 	verInfo := PatchSelectorFromMatch(match, versionExprRE)
 	latest := match[versionExprRE.SubexpIndex("latest")] == "!"

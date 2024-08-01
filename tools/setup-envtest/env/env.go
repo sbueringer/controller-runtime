@@ -122,7 +122,11 @@ func (e *Env) ListVersions(ctx context.Context) {
 	}
 
 	for _, set := range remoteVersions {
-		if !e.Version.Matches(set.Version) {
+		if !e.Version.Matches(versions.Concrete{
+			Major: int(set.Version.Major),
+			Minor: int(set.Version.Minor),
+			Patch: int(set.Version.Patch),
+		}) {
 			continue
 		}
 		sort.Slice(set.Platforms, func(i, j int) bool {
@@ -145,7 +149,11 @@ func (e *Env) LatestVersion(ctx context.Context) (versions.Concrete, versions.Pl
 		ExitCause(2, err, "unable to list versions to find latest one")
 	}
 	for _, set := range vers {
-		if !e.Version.Matches(set.Version) {
+		if !e.Version.Matches(versions.Concrete{
+			Major: int(set.Version.Major),
+			Minor: int(set.Version.Minor),
+			Patch: int(set.Version.Patch),
+		}) {
 			e.Log.V(1).Info("skipping non-matching version", "version", set.Version)
 			continue
 		}
@@ -153,8 +161,16 @@ func (e *Env) LatestVersion(ctx context.Context) (versions.Concrete, versions.Pl
 		for _, plat := range set.Platforms {
 			// NB(directxman12): we're already iterating in order, so no
 			// need to check if the wildcard is latest vs any
-			if e.Platform.Matches(plat.Platform) && e.Version.Matches(set.Version) {
-				return set.Version, plat
+			if e.Platform.Matches(plat.Platform) && e.Version.Matches(versions.Concrete{
+				Major: int(set.Version.Major),
+				Minor: int(set.Version.Minor),
+				Patch: int(set.Version.Patch),
+			}) {
+				return versions.Concrete{
+					Major: int(set.Version.Major),
+					Minor: int(set.Version.Minor),
+					Patch: int(set.Version.Patch),
+				}, plat
 			}
 		}
 		e.Log.Info("latest version not supported for your platform, checking older ones", "version", set.Version, "platform", e.Platform)

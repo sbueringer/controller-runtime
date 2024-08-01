@@ -6,6 +6,8 @@ package versions
 import (
 	"fmt"
 	"regexp"
+
+	"github.com/blang/semver/v4"
 )
 
 // Platform contains OS & architecture information
@@ -33,6 +35,9 @@ func (p Platform) String() string {
 // BaseName returns the base directory name that fully identifies a given
 // version and platform.
 func (p Platform) BaseName(ver Concrete) string {
+	if len(ver.Pre) > 0 {
+		return fmt.Sprintf("%s-%s-%s", ver.ToSemVer().String(), p.OS, p.Arch)
+	}
 	return fmt.Sprintf("%d.%d.%d-%s-%s", ver.Major, ver.Minor, ver.Patch, p.OS, p.Arch)
 }
 
@@ -91,7 +96,7 @@ const (
 
 // Set is a concrete version and all the corresponding platforms that it's available for.
 type Set struct {
-	Version   Concrete
+	Version   *semver.Version
 	Platforms []PlatformItem
 }
 
