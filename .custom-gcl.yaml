@@ -1,0 +1,7 @@
+version:  v1.64.6
+name: golangci-lint-logcheck-v1.64.6
+destination: ./hack/tools/bin
+plugins:
+- module: "sigs.k8s.io/logtools"
+  import: "sigs.k8s.io/logtools/logcheck/gclplugin"
+  version: v0.9.0

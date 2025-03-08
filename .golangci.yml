@@ -23,6 +23,7 @@ linters:
     - govet
     - importas
     - ineffassign
+    - logcheck
     - makezero
     - misspell
     - nakedret
@@ -40,6 +41,17 @@ linters:
     - whitespace
 
 linters-settings:
+  custom:
+    logcheck:
+      type: "module"
+      description: structured logging checker
+      original-url: sigs.k8s.io/logtools/logcheck
+      settings:
+        check:
+          contextual: true
+        config: |
+          structured .*
+          contextual .*
   govet:
     enable-all: true
     disable:
