@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
 	eventsv1client "k8s.io/client-go/kubernetes/typed/events/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/events"
@@ -36,6 +37,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
 
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -97,6 +99,10 @@ type Manager interface {
 
 	// GetControllerOptions returns controller global configuration options.
 	GetControllerOptions() config.Controller
+
+	// GetConversionRegistry returns the conversion registry that is used to store conversion.Converter
+	// for the conversion endpoint.
+	GetConversionRegistry() conversion.Registry
 }
 
 // Options are the arguments for creating a new Manager.
@@ -450,6 +456,7 @@ func New(config *rest.Config, options Options) (Manager, error) {
 		logger:                        options.Logger,
 		elected:                       make(chan struct{}),
 		webhookServer:                 options.WebhookServer,
+		conversionRegistry:            conversion.NewRegistry(options.Scheme),
 		leaderElectionID:              options.LeaderElectionID,
 		leaseDuration:                 *options.LeaseDuration,
 		renewDeadline:                 *options.RenewDeadline,
@@ -507,6 +514,11 @@ func setOptionsDefaults(config *rest.Config, options Options) (Options, error) {
 	// Allow newRecorderProvider to be mocked
 	if options.newRecorderProvider == nil {
 		options.newRecorderProvider = intrec.NewProvider
+	}
+
+	// Use the Kubernetes client-go scheme if none is specified
+	if options.Scheme == nil {
+		options.Scheme = scheme.Scheme
 	}
 
 	// This is duplicated with pkg/cluster, we need it here

@@ -19,6 +19,7 @@ package builder
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -45,6 +46,7 @@ type WebhookBuilder struct {
 	customPath                string
 	customValidatorCustomPath string
 	customDefaulterCustomPath string
+	converter                 conversion.Converter
 	gvk                       schema.GroupVersionKind
 	mgr                       manager.Manager
 	config                    *rest.Config
@@ -83,6 +85,13 @@ func (blder *WebhookBuilder) WithDefaulter(defaulter admission.CustomDefaulter, 
 // WithValidator takes a admission.CustomValidator interface, a ValidatingWebhook will be wired for this type.
 func (blder *WebhookBuilder) WithValidator(validator admission.CustomValidator) *WebhookBuilder {
 	blder.customValidator = validator
+	return blder
+}
+
+// WithConverter takes a converter.Converter interface which will then be configured to
+// be used by the conversion endpoint.
+func (blder *WebhookBuilder) WithConverter(converter conversion.Converter) *WebhookBuilder {
+	blder.converter = converter
 	return blder
 }
 
@@ -287,17 +296,25 @@ func (blder *WebhookBuilder) getValidatingWebhook() *admission.Webhook {
 }
 
 func (blder *WebhookBuilder) registerConversionWebhook() error {
-	ok, err := conversion.IsConvertible(blder.mgr.GetScheme(), blder.apiType)
-	if err != nil {
-		log.Error(err, "conversion check failed", "GVK", blder.gvk)
-		return err
-	}
-	if ok {
-		if !blder.isAlreadyHandled("/convert") {
-			blder.mgr.GetWebhookServer().Register("/convert", conversion.NewWebhookHandler(blder.mgr.GetScheme()))
+	if blder.converter != nil {
+		if err := blder.mgr.GetConversionRegistry().RegisterConverter(blder.gvk.GroupKind(), blder.converter); err != nil {
+			return fmt.Errorf("failed to register Converter for %s: %w", blder.gvk.Kind, err)
 		}
-		log.Info("Conversion webhook enabled", "GVK", blder.gvk)
+	} else {
+		ok, err := conversion.IsConvertible(blder.mgr.GetScheme(), blder.apiType)
+		if err != nil {
+			log.Error(err, "conversion check failed", "GVK", blder.gvk)
+			return err
+		}
+		if !ok {
+			return nil
+		}
 	}
+
+	if !blder.isAlreadyHandled("/convert") {
+		blder.mgr.GetWebhookServer().Register("/convert", conversion.NewWebhookHandler(blder.mgr.GetScheme(), blder.mgr.GetConversionRegistry()))
+	}
+	log.Info("Conversion webhook enabled", "GVK", blder.gvk)
 
 	return nil
 }
