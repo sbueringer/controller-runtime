@@ -116,6 +116,9 @@ func (wh *webhook) handleConvertRequest(ctx context.Context, req *apix.Conversio
 		if err != nil {
 			return nil, err
 		}
+
+		conversionmetrics.Webhook.WithLabelValues(gvk.Kind).Inc()
+
 		dst, err := wh.allocateDstObject(req.DesiredAPIVersion, gvk.Kind)
 		if err != nil {
 			return nil, err

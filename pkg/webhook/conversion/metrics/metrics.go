@@ -28,11 +28,19 @@ var (
 		Name: "controller_runtime_conversion_webhook_panics_total",
 		Help: "Total number of conversion webhook panics",
 	}, []string{})
+
+	// Webhook is a prometheus counter metrics which holds the total
+	// number of panics from conversion webhooks.
+	Webhook = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "controller_runtime_conversion_webhook_total",
+		Help: "Total number of conversion webhook calls",
+	}, []string{"kind"})
 )
 
 func init() {
 	metrics.Registry.MustRegister(
 		WebhookPanics,
+		Webhook,
 	)
 	// Init metric.
 	WebhookPanics.WithLabelValues().Add(0)
