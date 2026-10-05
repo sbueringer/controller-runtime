@@ -18,6 +18,7 @@ package apiutil_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -29,6 +30,7 @@ import (
 	"github.com/onsi/gomega/format"
 	gomegatypes "github.com/onsi/gomega/types"
 
+	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -830,4 +832,89 @@ func (e *errorMatcher) FailureMessage(actual any) (message string) {
 
 func (e *errorMatcher) NegatedFailureMessage(actual any) (message string) {
 	return format.Message(actual, fmt.Sprintf("not to be %s error", e.message))
+}
+
+func TestDynamicRESTMapperWithContext(t *testing.T) {
+	restCfg := setupEnvtest(t, false)
+
+	newMapper := func(g *gmg.WithT) meta.RESTMapperWithContext {
+		httpClient, err := rest.HTTPClientFor(restCfg)
+		g.Expect(err).NotTo(gmg.HaveOccurred())
+
+		dynamicMapper, err := apiutil.NewDynamicRESTMapper(restCfg, httpClient)
+		g.Expect(err).NotTo(gmg.HaveOccurred())
+
+		// The dynamic mapper implements the context-aware interface itself, no wrapper is needed.
+		mapperWithContext, ok := dynamicMapper.(meta.RESTMapperWithContext)
+		g.Expect(ok).To(gmg.BeTrue())
+		return mapperWithContext
+	}
+
+	t.Run("should map resources via the WithContext methods", func(t *testing.T) {
+		g := gmg.NewWithT(t)
+		m := newMapper(g)
+
+		mapping, err := m.RESTMappingWithContext(t.Context(), schema.GroupKind{Group: "apps", Kind: "Deployment"}, "v1")
+		g.Expect(err).NotTo(gmg.HaveOccurred())
+		g.Expect(mapping.Resource).To(gmg.Equal(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}))
+
+		mappings, err := m.RESTMappingsWithContext(t.Context(), schema.GroupKind{Group: "", Kind: "Pod"}, "v1")
+		g.Expect(err).NotTo(gmg.HaveOccurred())
+		g.Expect(mappings).To(gmg.HaveLen(1))
+
+		gvk, err := m.KindForWithContext(t.Context(), schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"})
+		g.Expect(err).NotTo(gmg.HaveOccurred())
+		g.Expect(gvk).To(gmg.Equal(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Pod"}))
+
+		gvks, err := m.KindsForWithContext(t.Context(), schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"})
+		g.Expect(err).NotTo(gmg.HaveOccurred())
+		g.Expect(gvks).To(gmg.ConsistOf(gvk))
+
+		gvr, err := m.ResourceForWithContext(t.Context(), schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"})
+		g.Expect(err).NotTo(gmg.HaveOccurred())
+		g.Expect(gvr.Resource).To(gmg.Equal("pods"))
+
+		gvrs, err := m.ResourcesForWithContext(t.Context(), schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"})
+		g.Expect(err).NotTo(gmg.HaveOccurred())
+		g.Expect(gvrs).To(gmg.ConsistOf(gvr))
+
+		singular, err := m.ResourceSingularizerWithContext(t.Context(), "pods")
+		g.Expect(err).NotTo(gmg.HaveOccurred())
+		g.Expect(singular).To(gmg.Equal("pod"))
+	})
+
+	t.Run("should report namespace scope via the WithContext helpers", func(t *testing.T) {
+		g := gmg.NewWithT(t)
+		m := newMapper(g)
+
+		namespaced, err := apiutil.IsGVKNamespacedWithContext(t.Context(), schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Pod"}, m)
+		g.Expect(err).NotTo(gmg.HaveOccurred())
+		g.Expect(namespaced).To(gmg.BeTrue())
+
+		namespaced, err = apiutil.IsObjectNamespacedWithContext(t.Context(), &corev1.Pod{}, scheme.Scheme, m)
+		g.Expect(err).NotTo(gmg.HaveOccurred())
+		g.Expect(namespaced).To(gmg.BeTrue())
+
+		namespaced, err = apiutil.IsObjectNamespacedWithContext(t.Context(), &corev1.Node{}, scheme.Scheme, m)
+		g.Expect(err).NotTo(gmg.HaveOccurred())
+		g.Expect(namespaced).To(gmg.BeFalse())
+	})
+
+	t.Run("should stop discovery when the context is cancelled and recover afterwards", func(t *testing.T) {
+		g := gmg.NewWithT(t)
+		m := newMapper(g)
+
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+
+		gk := schema.GroupKind{Group: "apps", Kind: "Deployment"}
+		_, err := m.RESTMappingWithContext(ctx, gk, "v1")
+		g.Expect(err).To(gmg.HaveOccurred())
+		g.Expect(errors.Is(err, context.Canceled)).To(gmg.BeTrue(), "expected context.Canceled, got: %v", err)
+
+		// The failed discovery must not leave the mapper in a broken state.
+		mapping, err := m.RESTMappingWithContext(t.Context(), gk, "v1")
+		g.Expect(err).NotTo(gmg.HaveOccurred())
+		g.Expect(mapping.Resource.Resource).To(gmg.Equal("deployments"))
+	})
 }

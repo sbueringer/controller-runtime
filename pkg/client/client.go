@@ -210,11 +210,13 @@ func newClient(config *rest.Config, options Options) (*client, Client, error) {
 		options.Log = log.Log.WithName("client")
 	}
 
+	mapperWithContext := meta.ToRESTMapperWithContext(options.Mapper)
+
 	resources := &clientRestResources{
 		httpClient: options.HTTPClient,
 		config:     config,
 		scheme:     options.Scheme,
-		mapper:     options.Mapper,
+		mapper:     mapperWithContext,
 		codecs:     serializer.NewCodecFactory(options.Scheme),
 
 		resourceByType: make(map[cacheKey]*resourceMeta),
@@ -236,10 +238,12 @@ func newClient(config *rest.Config, options Options) (*client, Client, error) {
 		},
 		metadataClient: metadataClient{
 			client:     rawMetaClient,
-			restMapper: options.Mapper,
+			restMapper: mapperWithContext,
 		},
 		scheme: options.Scheme,
 		mapper: options.Mapper,
+
+		mapperWithContext: mapperWithContext,
 	}
 	if options.Cache == nil || options.Cache.Reader == nil {
 		return c, c, nil
@@ -288,6 +292,7 @@ type client struct {
 	metadataClient     metadataClient
 	scheme             *runtime.Scheme
 	mapper             meta.RESTMapper
+	mapperWithContext  meta.RESTMapperWithContext
 
 	cache             Reader
 	uncachedGVKs      map[schema.GroupVersionKind]struct{}
@@ -334,7 +339,7 @@ func (c *client) GroupVersionKindFor(obj runtime.Object) (schema.GroupVersionKin
 
 // IsObjectNamespaced returns true if the GroupVersionKind of the object is namespaced.
 func (c *client) IsObjectNamespaced(obj runtime.Object) (bool, error) {
-	return apiutil.IsObjectNamespaced(obj, c.scheme, c.mapper)
+	return apiutil.IsObjectNamespacedWithContext(context.Background(), obj, c.scheme, c.mapperWithContext)
 }
 
 // Scheme returns the scheme this client is using.
@@ -406,7 +411,7 @@ func (c *client) DeleteAllOf(ctx context.Context, obj Object, opts ...DeleteAllO
 		if err != nil {
 			return err
 		}
-		if err := c.rejectNamespaceForClusterScoped("DeleteAllOf", gvk, deleteAllOfOpts.Namespace); err != nil {
+		if err := c.rejectNamespaceForClusterScoped(ctx, "DeleteAllOf", gvk, deleteAllOfOpts.Namespace); err != nil {
 			return err
 		}
 	}
@@ -423,8 +428,8 @@ func (c *client) DeleteAllOf(ctx context.Context, obj Object, opts ...DeleteAllO
 
 // rejectNamespaceForClusterScoped returns an error if gvk is cluster-scoped and
 // namespace is non-empty; it is a no-op for namespace-scoped resources.
-func (c *client) rejectNamespaceForClusterScoped(op string, gvk schema.GroupVersionKind, namespace string) error {
-	namespaced, err := apiutil.IsGVKNamespaced(gvk, c.mapper)
+func (c *client) rejectNamespaceForClusterScoped(ctx context.Context, op string, gvk schema.GroupVersionKind, namespace string) error {
+	namespaced, err := apiutil.IsGVKNamespacedWithContext(ctx, gvk, c.mapperWithContext)
 	if err != nil {
 		return fmt.Errorf("failed to determine if %s is namespace-scoped: %w", gvk, err)
 	}
@@ -496,7 +501,7 @@ func (c *client) List(ctx context.Context, obj ObjectList, opts ...ListOption) e
 			return err
 		}
 		gvk.Kind = strings.TrimSuffix(gvk.Kind, "List")
-		if err := c.rejectNamespaceForClusterScoped("List", gvk, listOpts.Namespace); err != nil {
+		if err := c.rejectNamespaceForClusterScoped(ctx, "List", gvk, listOpts.Namespace); err != nil {
 			return err
 		}
 	}

@@ -60,7 +60,7 @@ func newMultiNamespaceCache(
 	return &multiNamespaceCache{
 		namespaceToCache: caches,
 		Scheme:           scheme,
-		RESTMapper:       restMapper,
+		RESTMapper:       apimeta.ToRESTMapperWithContext(restMapper),
 		clusterCache:     clusterCache,
 	}
 }
@@ -71,7 +71,7 @@ func newMultiNamespaceCache(
 // in the cluster.
 type multiNamespaceCache struct {
 	Scheme           *runtime.Scheme
-	RESTMapper       apimeta.RESTMapper
+	RESTMapper       apimeta.RESTMapperWithContext
 	namespaceToCache map[string]Cache
 	clusterCache     Cache
 }
@@ -83,7 +83,7 @@ var _ Cache = &multiNamespaceCache{}
 func (c *multiNamespaceCache) GetInformer(ctx context.Context, obj client.Object, opts ...InformerGetOption) (Informer, error) {
 	// If the object is cluster scoped, get the informer from clusterCache,
 	// if not use the namespaced caches.
-	isNamespaced, err := apiutil.IsObjectNamespaced(obj, c.Scheme, c.RESTMapper)
+	isNamespaced, err := apiutil.IsObjectNamespacedWithContext(ctx, obj, c.Scheme, c.RESTMapper)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func (c *multiNamespaceCache) GetInformer(ctx context.Context, obj client.Object
 func (c *multiNamespaceCache) RemoveInformer(ctx context.Context, obj client.Object) error {
 	// If the object is clusterscoped, get the informer from clusterCache,
 	// if not use the namespaced caches.
-	isNamespaced, err := apiutil.IsObjectNamespaced(obj, c.Scheme, c.RESTMapper)
+	isNamespaced, err := apiutil.IsObjectNamespacedWithContext(ctx, obj, c.Scheme, c.RESTMapper)
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func (c *multiNamespaceCache) RemoveInformer(ctx context.Context, obj client.Obj
 func (c *multiNamespaceCache) GetInformerForKind(ctx context.Context, gvk schema.GroupVersionKind, opts ...InformerGetOption) (Informer, error) {
 	// If the object is cluster scoped, get the informer from clusterCache,
 	// if not use the namespaced caches.
-	isNamespaced, err := apiutil.IsGVKNamespaced(gvk, c.RESTMapper)
+	isNamespaced, err := apiutil.IsGVKNamespacedWithContext(ctx, gvk, c.RESTMapper)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +208,7 @@ func (c *multiNamespaceCache) WaitForCacheSync(ctx context.Context) bool {
 }
 
 func (c *multiNamespaceCache) IndexField(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error {
-	isNamespaced, err := apiutil.IsObjectNamespaced(obj, c.Scheme, c.RESTMapper)
+	isNamespaced, err := apiutil.IsObjectNamespacedWithContext(ctx, obj, c.Scheme, c.RESTMapper)
 	if err != nil {
 		return err
 	}
@@ -226,7 +226,7 @@ func (c *multiNamespaceCache) IndexField(ctx context.Context, obj client.Object,
 }
 
 func (c *multiNamespaceCache) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-	isNamespaced, err := apiutil.IsObjectNamespaced(obj, c.Scheme, c.RESTMapper)
+	isNamespaced, err := apiutil.IsObjectNamespacedWithContext(ctx, obj, c.Scheme, c.RESTMapper)
 	if err != nil {
 		return err
 	}
@@ -255,7 +255,7 @@ func (c *multiNamespaceCache) List(ctx context.Context, list client.ObjectList, 
 		return fmt.Errorf("continue list option is not supported by the cache")
 	}
 
-	isNamespaced, err := apiutil.IsObjectNamespaced(list, c.Scheme, c.RESTMapper)
+	isNamespaced, err := apiutil.IsObjectNamespacedWithContext(ctx, list, c.Scheme, c.RESTMapper)
 	if err != nil {
 		return err
 	}
